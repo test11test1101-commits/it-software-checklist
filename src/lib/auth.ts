@@ -8,14 +8,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        username: { label: "Username", type: "text" },
+        username: { label: "Username or Employee ID", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username as string },
+        const identifier = (credentials.username as string).trim();
+
+        // Allow login with either username or employeeId
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { username: identifier },
+              { employeeId: identifier },
+            ],
+          },
         });
 
         if (!user) return null;
@@ -32,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           username: user.username,
+          employeeId: user.employeeId,
           role: user.role,
         };
       },
@@ -42,6 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.username = (user as any).username;
+        token.employeeId = (user as any).employeeId;
         token.role = (user as any).role;
       }
       return token;
@@ -50,6 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.id as string;
         (session.user as any).username = token.username;
+        (session.user as any).employeeId = token.employeeId;
         (session.user as any).role = token.role;
       }
       return session;

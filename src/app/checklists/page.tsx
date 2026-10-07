@@ -35,6 +35,14 @@ export default async function ChecklistsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {(session.user as any)?.role === "ADMIN" && (
+              <Link
+                href="/users"
+                className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
+              >
+                👥 Tech Support
+              </Link>
+            )}
             <Link href="/checklists/new" className="bg-yellow-400 hover:bg-yellow-300 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition">
               + New
             </Link>

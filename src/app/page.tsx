@@ -65,6 +65,14 @@ export default async function HomePage() {
               <span className="text-slate-300 text-sm hidden sm:block">
                 {session.user?.name} · {(session.user as any)?.role}
               </span>
+              {(session.user as any)?.role === "ADMIN" && (
+                <Link
+                  href="/users"
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5"
+                >
+                  <span>👥</span> Tech Support
+                </Link>
+              )}
               <Link
                 href="/checklists/new"
                 id="new-checklist-btn"
