@@ -1,0 +1,162 @@
+// Prisma schema for IT Software Installation Checklist
+// Compatible with TiDB Cloud (MySQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  username      String    @unique
+  password      String
+  role          Role      @default(INSTALLER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  checklists    Checklist[] @relation("InstallerChecklists")
+  prepared      Checklist[] @relation("PreparedChecklists")
+  checked       Checklist[] @relation("CheckedChecklists")
+  approved      Checklist[] @relation("ApprovedChecklists")
+  accounts      Account[]
+  sessions      Session[]
+}
+
+enum Role {
+  INSTALLER
+  CHECKER
+  APPROVER
+  ADMIN
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Branch {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  createdAt  DateTime    @default(now())
+  checklists Checklist[]
+}
+
+model Checklist {
+  id              String          @id @default(cuid())
+  formNumber      String          @default("FORM-IT-004.00")
+  branchId        String?
+  branch          Branch?         @relation(fields: [branchId], references: [id])
+  department      String?
+  date            DateTime        @default(now())
+  computerName    String
+  operatingSystem String?
+  hddSsdSerial    String?
+  status          ChecklistStatus @default(DRAFT)
+
+  installerId     String?
+  installer       User?           @relation("InstallerChecklists", fields: [installerId], references: [id])
+  installerName   String?
+
+  preparedById    String?
+  preparedBy      User?           @relation("PreparedChecklists", fields: [preparedById], references: [id])
+  preparedByName  String?
+
+  checkedById     String?
+  checkedBy       User?           @relation("CheckedChecklists", fields: [checkedById], references: [id])
+  checkedByName   String?
+
+  approvedById    String?
+  approvedBy      User?           @relation("ApprovedChecklists", fields: [approvedById], references: [id])
+  approvedByName  String?
+
+  remarks         String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  results         ChecklistResult[]
+
+  @@index([branchId])
+  @@index([installerId])
+  @@index([preparedById])
+  @@index([checkedById])
+  @@index([approvedById])
+}
+
+enum ChecklistStatus {
+  DRAFT
+  SUBMITTED
+  CHECKED
+  APPROVED
+  REJECTED
+}
+
+model SoftwareItem {
+  id          String            @id @default(cuid())
+  section     ChecklistSection
+  order       Int
+  name        String
+  description String?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+
+  results     ChecklistResult[]
+
+  @@index([section])
+}
+
+enum ChecklistSection {
+  FIRST
+  SECOND
+  THIRD
+  FOURTH
+  FINAL
+}
+
+model ChecklistResult {
+  id             String       @id @default(cuid())
+  checklistId    String
+  checklist      Checklist    @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  softwareItemId String
+  softwareItem   SoftwareItem @relation(fields: [softwareItemId], references: [id])
+  isChecked      Boolean      @default(false)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([checklistId, softwareItemId])
+  @@index([checklistId])
+  @@index([softwareItemId])
+}
