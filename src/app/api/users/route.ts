@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       employeeId: trimmedEmployeeId,
       username: trimmedUsername,
       password: hashedPassword,
-      role: (userRole as any) || "INSTALLER",
+      role: userRole === "ADMIN" ? "ADMIN" : "TECH_SUPPORT",
     },
     select: {
       id: true,

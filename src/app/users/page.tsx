@@ -19,9 +19,8 @@ interface UserItem {
 }
 
 const ROLE_BADGES: Record<string, { label: string; color: string }> = {
-  INSTALLER: { label: "Tech Support / Installer", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  CHECKER: { label: "IT Checker", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  APPROVER: { label: "IT Approver", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  TECH_SUPPORT: { label: "Technical Support", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  INSTALLER: { label: "Technical Support", color: "bg-blue-50 text-blue-700 border-blue-200" }, // backwards-compatible
   ADMIN: { label: "Administrator", color: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
@@ -39,7 +38,7 @@ export default function UsersManagementPage() {
     employeeId: "",
     username: "",
     password: "",
-    role: "INSTALLER",
+    role: "TECH_SUPPORT",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -104,7 +103,7 @@ export default function UsersManagementPage() {
         employeeId: "",
         username: "",
         password: "",
-        role: "INSTALLER",
+        role: "TECH_SUPPORT",
       });
       loadUsers();
     } catch {
@@ -230,27 +229,21 @@ export default function UsersManagementPage() {
         )}
 
         {/* Search & Overview Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs text-slate-500 block">Total Staff</span>
+            <span className="text-xs text-slate-500 block">Total Users</span>
             <span className="text-2xl font-bold text-slate-800">{users.length}</span>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs text-slate-500 block">Tech Support (Installers)</span>
+            <span className="text-xs text-slate-500 block">Technical Support</span>
             <span className="text-2xl font-bold text-blue-600">
-              {users.filter((u) => u.role === "INSTALLER").length}
+              {users.filter((u) => u.role === "TECH_SUPPORT" || u.role === "INSTALLER").length}
             </span>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs text-slate-500 block">Checkers / Quality</span>
-            <span className="text-2xl font-bold text-amber-600">
-              {users.filter((u) => u.role === "CHECKER").length}
-            </span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs text-slate-500 block">Approvers / Managers</span>
-            <span className="text-2xl font-bold text-emerald-600">
-              {users.filter((u) => u.role === "APPROVER" || u.role === "ADMIN").length}
+            <span className="text-xs text-slate-500 block">Administrators</span>
+            <span className="text-2xl font-bold text-purple-600">
+              {users.filter((u) => u.role === "ADMIN").length}
             </span>
           </div>
         </div>
@@ -454,9 +447,7 @@ export default function UsersManagementPage() {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="INSTALLER">Technical Support / Installer</option>
-                  <option value="CHECKER">IT Checker (Quality Review)</option>
-                  <option value="APPROVER">IT Approver (Manager)</option>
+                  <option value="TECH_SUPPORT">Technical Support</option>
                   <option value="ADMIN">Administrator</option>
                 </select>
               </div>

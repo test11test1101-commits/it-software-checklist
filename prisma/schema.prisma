@@ -18,7 +18,7 @@ model User {
   email         String?   @unique
   username      String    @unique
   password      String
-  role          Role      @default(INSTALLER)
+  role          Role      @default(TECH_SUPPORT)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -31,10 +31,8 @@ model User {
 }
 
 enum Role {
-  INSTALLER
-  CHECKER
-  APPROVER
   ADMIN
+  TECH_SUPPORT
 }
 
 model Account {

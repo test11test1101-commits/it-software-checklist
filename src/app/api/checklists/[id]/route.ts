@@ -74,10 +74,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Assign checker/approver user IDs based on role
   const userRole = (session.user as any)?.role;
   const userId = session.user?.id;
-  if (body.status === "CHECKED" && userRole === "CHECKER" && userId) {
+  if (body.status === "CHECKED" && (userRole === "TECH_SUPPORT" || userRole === "ADMIN" || userRole === "CHECKER") && userId) {
     updateData.checkedById = userId;
   }
-  if (body.status === "APPROVED" && (userRole === "APPROVER" || userRole === "ADMIN") && userId) {
+  if (body.status === "APPROVED" && (userRole === "ADMIN" || userRole === "TECH_SUPPORT" || userRole === "APPROVER") && userId) {
     updateData.approvedById = userId;
   }
 
