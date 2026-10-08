@@ -31,7 +31,7 @@ type TabType = "branches" | "departments" | "operating-systems";
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialTab = (searchParams.get("tab") as TabType) || "branches";
+  const initialTab = (searchParams.get("tab") as TabType) || "departments";
 
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [branches, setBranches] = useState<BranchItem[]>([]);
@@ -40,28 +40,55 @@ function AdminSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Multiple selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
-  // Active item for Edit / Delete
+  // Active item for Single Edit / Delete
   const [selectedItem, setSelectedItem] = useState<{ id: string; name: string; count?: number } | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Endpoint helper
+  const getEndpoint = (tab: TabType) => {
+    switch (tab) {
+      case "branches":
+        return "/api/branches";
+      case "departments":
+        return "/api/departments";
+      case "operating-systems":
+        return "/api/operating-systems";
+    }
+  };
+
+  const getSingularLabel = (tab: TabType) => {
+    switch (tab) {
+      case "branches":
+        return "Branch";
+      case "departments":
+        return "Department";
+      case "operating-systems":
+        return "Operating System";
+    }
+  };
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [bRes, dRes, osRes] = await Promise.all([
-        fetch("/api/branches"),
-        fetch("/api/departments"),
-        fetch("/api/operating-systems"),
+        fetch("/api/branches", { cache: "no-store" }),
+        fetch("/api/departments", { cache: "no-store" }),
+        fetch("/api/operating-systems", { cache: "no-store" }),
       ]);
 
-      if (bRes.status === 403 || dRes.status === 403) {
+      if (bRes.status === 403 || dRes.status === 403 || osRes.status === 403) {
         setError("Access denied. Administrator privileges required.");
         setLoading(false);
         return;
@@ -90,31 +117,47 @@ function AdminSettingsContent() {
   const switchTab = (tab: TabType) => {
     setActiveTab(tab);
     setSearch("");
+    setSelectedIds(new Set());
     setError("");
     setSuccess("");
     router.replace(`/admin/settings?tab=${tab}`);
   };
 
-  // Helper endpoint resolution
-  const getEndpoint = (tab: TabType) => {
-    switch (tab) {
-      case "branches":
-        return "/api/branches";
-      case "departments":
-        return "/api/departments";
-      case "operating-systems":
-        return "/api/operating-systems";
-    }
+  // Filtered lists based on search
+  const filteredBranches = branches.filter((b) =>
+    b.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredDepartments = departments.filter((d) =>
+    d.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredOS = operatingSystems.filter((o) =>
+    o.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getCurrentList = () => {
+    if (activeTab === "branches") return filteredBranches;
+    if (activeTab === "departments") return filteredDepartments;
+    return filteredOS;
   };
 
-  const getSingularLabel = (tab: TabType) => {
-    switch (tab) {
-      case "branches":
-        return "Branch";
-      case "departments":
-        return "Department";
-      case "operating-systems":
-        return "Operating System";
+  const currentList = getCurrentList();
+  const allSelected = currentList.length > 0 && currentList.every((item) => selectedIds.has(item.id));
+
+  // Toggle selection
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(currentList.map((i) => i.id)));
     }
   };
 
@@ -188,49 +231,124 @@ function AdminSettingsContent() {
     }
   };
 
-  // DELETE item handler
-  const handleDelete = async () => {
+  // SINGLE DELETE item handler (with instant optimistic update)
+  const handleSingleDelete = async () => {
     if (!selectedItem) return;
+
+    const idToDelete = selectedItem.id;
+    const itemName = selectedItem.name;
 
     setSubmitting(true);
     setError("");
     setSuccess("");
 
+    // Optimistic UI update
+    if (activeTab === "branches") {
+      setBranches((prev) => prev.filter((b) => b.id !== idToDelete));
+    } else if (activeTab === "departments") {
+      setDepartments((prev) => prev.filter((d) => d.id !== idToDelete));
+    } else {
+      setOperatingSystems((prev) => prev.filter((o) => o.id !== idToDelete));
+    }
+
     try {
-      const res = await fetch(`${getEndpoint(activeTab)}/${selectedItem.id}`, {
+      const res = await fetch(getEndpoint(activeTab), {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [idToDelete] }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || `Failed to delete ${getSingularLabel(activeTab).toLowerCase()}.`);
+        loadData();
         return;
       }
 
-      setSuccess(`Deleted "${selectedItem.name}" successfully.`);
+      setSuccess(`Deleted "${itemName}" successfully.`);
       setIsDeleteModalOpen(false);
       setSelectedItem(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(idToDelete);
+        return next;
+      });
       loadData();
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      loadData();
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Filtered lists based on search
-  const filteredBranches = branches.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredDepartments = departments.filter((d) =>
-    d.name.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredOS = operatingSystems.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // MULTIPLE / BULK DELETE handler (with instant optimistic update)
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const idsToDelete = Array.from(selectedIds);
+    const count = idsToDelete.length;
+
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    // Optimistic UI update
+    if (activeTab === "branches") {
+      setBranches((prev) => prev.filter((b) => !selectedIds.has(b.id)));
+    } else if (activeTab === "departments") {
+      setDepartments((prev) => prev.filter((d) => !selectedIds.has(d.id)));
+    } else {
+      setOperatingSystems((prev) => prev.filter((o) => !selectedIds.has(o.id)));
+    }
+
+    try {
+      const res = await fetch(getEndpoint(activeTab), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || `Failed to delete selected items.`);
+        loadData();
+        return;
+      }
+
+      setSuccess(`Successfully deleted ${count} ${getSingularLabel(activeTab).toLowerCase()}(s).`);
+      setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
+      loadData();
+    } catch {
+      setError("An unexpected error occurred during bulk deletion.");
+      loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // RESTORE DEFAULTS handler
+  const handleRestoreDefaults = async () => {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`${getEndpoint(activeTab)}?seed=1`, { cache: "no-store" });
+      const data = await res.json();
+      if (activeTab === "branches") setBranches(data);
+      else if (activeTab === "departments") setDepartments(data);
+      else setOperatingSystems(data);
+      setSuccess(`Restored standard default ${getSingularLabel(activeTab).toLowerCase()} options.`);
+    } catch {
+      setError("Failed to restore defaults.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-12">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
       {/* Top Navigation */}
       <nav className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white shadow-lg border-b border-purple-800/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -317,15 +435,15 @@ function AdminSettingsContent() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Alerts */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between">
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between shadow-xs">
             <span>{error}</span>
-            <button onClick={() => setError("")} className="text-red-500 hover:text-red-700 font-bold ml-2">×</button>
+            <button onClick={() => setError("")} className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer">×</button>
           </div>
         )}
         {success && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-center justify-between">
+          <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-center justify-between shadow-xs">
             <span>{success}</span>
-            <button onClick={() => setSuccess("")} className="text-emerald-500 hover:text-emerald-700 font-bold ml-2">×</button>
+            <button onClick={() => setSuccess("")} className="text-emerald-500 hover:text-emerald-700 font-bold ml-2 cursor-pointer">×</button>
           </div>
         )}
 
@@ -344,25 +462,36 @@ function AdminSettingsContent() {
               </h1>
               <p className="text-purple-200 text-sm mt-1 max-w-2xl">
                 {activeTab === "branches" &&
-                  "Assign and customize company branch names. These populate the checklist Branch dropdown and header labels."}
+                  "Assign and customize company branch names. Check multiple to delete or manage in bulk."}
                 {activeTab === "departments" &&
                   "Configure the official department list. Technical Support will select from these departments in the checklist form."}
                 {activeTab === "operating-systems" &&
-                  "Manage the operating system catalog available to Technical Support when commissioning new PCs and laptops."}
+                  "Manage the operating systems catalog available to Technical Support when commissioning new PCs and laptops."}
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                setInputValue("");
-                setError("");
-                setIsAddModalOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-sm shadow-lg transition cursor-pointer self-start md:self-auto shrink-0"
-            >
-              <span>+</span>
-              <span>Add New {getSingularLabel(activeTab)}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => {
+                  setInputValue("");
+                  setError("");
+                  setIsAddModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-sm shadow-lg transition cursor-pointer"
+              >
+                <span>+</span>
+                <span>Add New {getSingularLabel(activeTab)}</span>
+              </button>
+
+              <button
+                onClick={handleRestoreDefaults}
+                title="Restore default standard entries"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/15 transition cursor-pointer"
+              >
+                <span>🔄</span>
+                <span>Defaults</span>
+              </button>
+            </div>
           </div>
 
           {/* Master Stats Counters */}
@@ -382,7 +511,7 @@ function AdminSettingsContent() {
           </div>
         </div>
 
-        {/* Content Section */}
+        {/* Content Section with Multiple Select Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           {/* Search bar & Controls */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -397,64 +526,113 @@ function AdminSettingsContent() {
               <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
             </div>
 
-            <span className="text-xs text-slate-500 self-end sm:self-auto">
-              Showing{" "}
-              {activeTab === "branches" && filteredBranches.length}
-              {activeTab === "departments" && filteredDepartments.length}
-              {activeTab === "operating-systems" && filteredOS.length}{" "}
-              item(s)
-            </span>
+            <div className="flex items-center gap-3 self-end sm:self-auto text-xs text-slate-500">
+              <span>Showing {currentList.length} item(s)</span>
+            </div>
           </div>
 
-          {/* Table representation */}
+          {/* ── BULK ACTIONS TOOLBAR (Appears when items are checked) ── */}
+          {selectedIds.size > 0 && (
+            <div className="bg-purple-900 text-white px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold text-white">
+                  ✓
+                </span>
+                <span className="text-sm font-semibold">
+                  {selectedIds.size} of {currentList.length} {getSingularLabel(activeTab).toLowerCase()}(s) selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-purple-100 transition cursor-pointer"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkDeleteModalOpen(true)}
+                  className="text-xs font-bold px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <span>🗑️</span>
+                  <span>Delete Selected ({selectedIds.size})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Table representation with Checkboxes */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
+              <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-3.5 font-semibold">Name / Designation</th>
+                  <th className="w-12 px-5 py-3.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      title="Select / Deselect all"
+                    />
+                  </th>
+                  <th className="px-5 py-3.5 font-semibold">Name / Designation</th>
                   {activeTab === "branches" && (
-                    <th className="px-6 py-3.5 font-semibold text-center">Linked Checklists</th>
+                    <th className="px-5 py-3.5 font-semibold text-center">Linked Checklists</th>
                   )}
-                  <th className="px-6 py-3.5 font-semibold">Created Date</th>
-                  <th className="px-6 py-3.5 font-semibold text-right">Actions</th>
+                  <th className="px-5 py-3.5 font-semibold">Created Date</th>
+                  <th className="px-5 py-3.5 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                       Loading data...
                     </td>
                   </tr>
+                ) : currentList.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                      No {getSingularLabel(activeTab).toLowerCase()}s found. Click "+ Add New {getSingularLabel(activeTab)}" or "🔄 Defaults" above to add some!
+                    </td>
+                  </tr>
                 ) : activeTab === "branches" ? (
-                  filteredBranches.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                        No branches found. Click "+ Add New Branch" above to customize one!
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredBranches.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50/80 transition">
-                        <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
+                  filteredBranches.map((b) => {
+                    const isSelected = selectedIds.has(b.id);
+                    return (
+                      <tr
+                        key={b.id}
+                        className={`transition ${isSelected ? "bg-purple-50/70" : "hover:bg-slate-50/80"}`}
+                      >
+                        <td className="w-12 px-5 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOne(b.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            aria-label={`Select branch ${b.name}`}
+                          />
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-900 flex items-center gap-2">
                           <span className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-sm">
                             🏢
                           </span>
                           <span>{b.name}</span>
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-5 py-4 text-center">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                             {b._count?.checklists ?? 0} checklist(s)
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 text-xs">
+                        <td className="px-5 py-4 text-slate-500 text-xs">
                           {new Date(b.createdAt).toLocaleDateString("en-PH", {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
+                        <td className="px-5 py-4 text-right space-x-2">
                           <button
                             onClick={() => {
                               setSelectedItem(b);
@@ -476,32 +654,39 @@ function AdminSettingsContent() {
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )
+                    );
+                  })
                 ) : activeTab === "departments" ? (
-                  filteredDepartments.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-12 text-center text-slate-400">
-                        No departments configured yet. Click "+ Add New Department" above!
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredDepartments.map((d) => (
-                      <tr key={d.id} className="hover:bg-slate-50/80 transition">
-                        <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
+                  filteredDepartments.map((d) => {
+                    const isSelected = selectedIds.has(d.id);
+                    return (
+                      <tr
+                        key={d.id}
+                        className={`transition ${isSelected ? "bg-purple-50/70" : "hover:bg-slate-50/80"}`}
+                      >
+                        <td className="w-12 px-5 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOne(d.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            aria-label={`Select department ${d.name}`}
+                          />
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-900 flex items-center gap-2">
                           <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-sm">
                             📂
                           </span>
                           <span>{d.name}</span>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 text-xs">
+                        <td className="px-5 py-4 text-slate-500 text-xs">
                           {new Date(d.createdAt).toLocaleDateString("en-PH", {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
+                        <td className="px-5 py-4 text-right space-x-2">
                           <button
                             onClick={() => {
                               setSelectedItem(d);
@@ -523,32 +708,39 @@ function AdminSettingsContent() {
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )
+                    );
+                  })
                 ) : (
-                  filteredOS.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-12 text-center text-slate-400">
-                        No operating systems found. Click "+ Add New Operating System" above!
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredOS.map((o) => (
-                      <tr key={o.id} className="hover:bg-slate-50/80 transition">
-                        <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
+                  filteredOS.map((o) => {
+                    const isSelected = selectedIds.has(o.id);
+                    return (
+                      <tr
+                        key={o.id}
+                        className={`transition ${isSelected ? "bg-purple-50/70" : "hover:bg-slate-50/80"}`}
+                      >
+                        <td className="w-12 px-5 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOne(o.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            aria-label={`Select OS ${o.name}`}
+                          />
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-900 flex items-center gap-2">
                           <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center text-sm">
                             💻
                           </span>
                           <span>{o.name}</span>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 text-xs">
+                        <td className="px-5 py-4 text-slate-500 text-xs">
                           {new Date(o.createdAt).toLocaleDateString("en-PH", {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
                           })}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
+                        <td className="px-5 py-4 text-right space-x-2">
                           <button
                             onClick={() => {
                               setSelectedItem(o);
@@ -570,8 +762,8 @@ function AdminSettingsContent() {
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -587,7 +779,7 @@ function AdminSettingsContent() {
               <h3 className="font-bold text-base">Add New {getSingularLabel(activeTab)}</h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-slate-400 hover:text-white text-sm cursor-pointer"
               >
                 ✕
               </button>
@@ -618,7 +810,7 @@ function AdminSettingsContent() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -643,7 +835,7 @@ function AdminSettingsContent() {
               <h3 className="font-bold text-base">Edit {getSingularLabel(activeTab)}</h3>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-slate-400 hover:text-white text-sm cursor-pointer"
               >
                 ✕
               </button>
@@ -667,7 +859,7 @@ function AdminSettingsContent() {
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -684,7 +876,7 @@ function AdminSettingsContent() {
         </div>
       )}
 
-      {/* ── DELETE CONFIRMATION MODAL ── */}
+      {/* ── SINGLE DELETE CONFIRMATION MODAL ── */}
       {isDeleteModalOpen && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
@@ -692,7 +884,7 @@ function AdminSettingsContent() {
               <h3 className="font-bold text-base">Delete Confirmation</h3>
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="text-red-200 hover:text-white text-sm"
+                className="text-red-200 hover:text-white text-sm cursor-pointer"
               >
                 ✕
               </button>
@@ -714,17 +906,65 @@ function AdminSettingsContent() {
                 <button
                   type="button"
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleDelete}
+                  onClick={handleSingleDelete}
                   disabled={submitting}
                   className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-60 cursor-pointer shadow-sm"
                 >
                   {submitting ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BULK / MULTIPLE DELETE CONFIRMATION MODAL ── */}
+      {isBulkDeleteModalOpen && selectedIds.size > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div className="bg-red-700 text-white px-6 py-4 flex items-center justify-between">
+              <h3 className="font-bold text-base">Bulk Delete Confirmation</h3>
+              <button
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="text-red-200 hover:text-white text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-700">
+                Are you sure you want to delete{" "}
+                <strong className="text-red-600 font-bold">{selectedIds.size}</strong> selected{" "}
+                {getSingularLabel(activeTab).toLowerCase()}(s)?
+              </p>
+
+              {activeTab === "branches" && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                  ⚠️ Note: Any checklists tied to these branches will be safely disassociated.
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkDeleteModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={submitting}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-60 cursor-pointer shadow-sm"
+                >
+                  {submitting ? "Deleting..." : `Yes, Delete (${selectedIds.size})`}
                 </button>
               </div>
             </div>
