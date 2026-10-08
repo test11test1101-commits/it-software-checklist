@@ -77,6 +77,47 @@ async function main() {
   }
   console.log("✅ Branches created");
 
+  // Create sample departments
+  const sampleDepartments = [
+    "IT Department",
+    "Finance",
+    "Accounting",
+    "Human Resources",
+    "Operations",
+    "Logistics",
+    "Sales & Marketing",
+    "Administration",
+    "Customer Support",
+    "Executive Office",
+  ];
+  for (const name of sampleDepartments) {
+    await prisma.department.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log("✅ Departments created");
+
+  // Create sample operating systems
+  const sampleOS = [
+    "Windows 11 Pro",
+    "Windows 11 Home",
+    "Windows 10 Pro",
+    "Windows 10 Home",
+    "Windows Server 2022",
+    "Windows Server 2019",
+    "Windows Server 2016",
+  ];
+  for (const name of sampleOS) {
+    await prisma.operatingSystem.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log("✅ Operating Systems created");
+
   // Create software items if not already present
   const existingCount = await prisma.softwareItem.count();
   if (existingCount === 0) {

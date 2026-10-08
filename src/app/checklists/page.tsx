@@ -56,12 +56,20 @@ export default async function ChecklistsPage({
           </div>
           <div className="flex items-center gap-3">
             {(session.user as any)?.role === "ADMIN" && (
-              <Link
-                href="/users"
-                className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition"
-              >
-                👥 Tech Support
-              </Link>
+              <>
+                <Link
+                  href="/admin/settings"
+                  className="bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
+                >
+                  ⚙️ Master Settings
+                </Link>
+                <Link
+                  href="/users"
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
+                >
+                  👥 Tech Support
+                </Link>
+              </>
             )}
             <Link
               href="/checklists/new"
@@ -175,7 +183,11 @@ export default async function ChecklistsPage({
                 {checklists.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition">
                     <td className="px-6 py-3.5 font-medium text-slate-900">{c.computerName}</td>
-                    <td className="px-6 py-3.5 text-slate-500">{c.branch?.name || c.department || "—"}</td>
+                    <td className="px-6 py-3.5 text-slate-500">
+                      {c.branch?.name && c.department
+                        ? `${c.branch.name} / ${c.department}`
+                        : c.branch?.name || c.department || "—"}
+                    </td>
                     <td className="px-6 py-3.5 text-slate-500">{c.operatingSystem || "—"}</td>
                     <td className="px-6 py-3.5 text-slate-500">
                       {new Date(c.date).toLocaleDateString("en-PH", {

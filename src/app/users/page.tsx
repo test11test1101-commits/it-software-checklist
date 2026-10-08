@@ -184,6 +184,12 @@ export default function UsersManagementPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link
+                href="/admin/settings"
+                className="bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+              >
+                <span>⚙️</span> Master Settings
+              </Link>
+              <Link
                 href="/checklists"
                 className="text-slate-300 hover:text-white text-sm px-3 py-1.5 rounded-lg transition"
               >
@@ -194,6 +200,41 @@ export default function UsersManagementPage() {
           </div>
         </div>
       </nav>
+
+      {/* Admin Module Tabs */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex overflow-x-auto gap-2 sm:gap-4 py-3">
+            <Link
+              href="/users"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-sm transition whitespace-nowrap flex items-center gap-2"
+            >
+              <span>👥</span> Tech Support Accounts
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=branches"
+              className="px-4 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition whitespace-nowrap flex items-center gap-2"
+            >
+              <span>🏢</span> Customize Branches
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=departments"
+              className="px-4 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition whitespace-nowrap flex items-center gap-2"
+            >
+              <span>📂</span> Department Dropdown
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=operating-systems"
+              className="px-4 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition whitespace-nowrap flex items-center gap-2"
+            >
+              <span>💻</span> Operating Systems
+            </Link>
+          </div>
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header & Action Button */}

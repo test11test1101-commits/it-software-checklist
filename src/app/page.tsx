@@ -75,12 +75,20 @@ export default async function HomePage() {
                 </span>
               </span>
               {userRole === "ADMIN" && (
-                <Link
-                  href="/users"
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5"
-                >
-                  <span>👥</span> Tech Support
-                </Link>
+                <>
+                  <Link
+                    href="/admin/settings"
+                    className="bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>⚙️</span> Master Settings
+                  </Link>
+                  <Link
+                    href="/users"
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>👥</span> Tech Support
+                  </Link>
+                </>
               )}
               <Link
                 href="/checklists/new"
@@ -224,7 +232,11 @@ export default async function HomePage() {
                 {recent.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition">
                     <td className="px-6 py-3 font-medium text-slate-800">{c.computerName}</td>
-                    <td className="px-6 py-3 text-slate-500">{c.branch?.name || c.department || "—"}</td>
+                    <td className="px-6 py-3 text-slate-500">
+                      {c.branch?.name && c.department
+                        ? `${c.branch.name} / ${c.department}`
+                        : c.branch?.name || c.department || "—"}
+                    </td>
                     <td className="px-6 py-3 text-slate-500">
                       {new Date(c.date).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
                     </td>

@@ -268,7 +268,11 @@ export default async function PrintChecklistPage({ params }: PrintPageProps) {
           <tbody>
             <tr>
               <td className="info-lbl">Branch / Dept.:</td>
-              <td style={{ minWidth: "180px" }}>{checklist.branch?.name || checklist.department || ""}</td>
+              <td style={{ minWidth: "180px" }}>
+                {checklist.branch?.name && checklist.department
+                  ? `${checklist.branch.name} / ${checklist.department}`
+                  : checklist.branch?.name || checklist.department || ""}
+              </td>
               <td className="info-lbl" style={{ width: "90px" }}>Date:</td>
               <td>{formattedDate}</td>
             </tr>

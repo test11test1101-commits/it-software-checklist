@@ -212,7 +212,14 @@ export default function ChecklistDetailPage() {
           </div>
 
           <div className="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-            <div><span className="text-slate-400 text-xs block">Branch / Dept</span><strong>{checklist.branch?.name || checklist.department || "—"}</strong></div>
+            <div>
+              <span className="text-slate-400 text-xs block">Branch / Dept</span>
+              <strong>
+                {checklist.branch?.name && checklist.department
+                  ? `${checklist.branch.name} · ${checklist.department}`
+                  : checklist.branch?.name || checklist.department || "—"}
+              </strong>
+            </div>
             <div><span className="text-slate-400 text-xs block">Date</span><strong>{new Date(checklist.date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</strong></div>
             <div><span className="text-slate-400 text-xs block">Computer Name</span><strong>{checklist.computerName}</strong></div>
             <div><span className="text-slate-400 text-xs block">Operating System</span><strong>{checklist.operatingSystem || "—"}</strong></div>

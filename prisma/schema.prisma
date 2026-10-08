@@ -73,6 +73,18 @@ model Branch {
   checklists Checklist[]
 }
 
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model OperatingSystem {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model Checklist {
   id              String          @id @default(cuid())
   formNumber      String          @default("FORM-IT-004.00")
