@@ -89,14 +89,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  // Assign checker/approver user IDs based on role
+  // Assign checker/approver/installer automatically
   const userRole = (session.user as any)?.role;
   const userId = session.user?.id;
-  if (body.status === "CHECKED" && (userRole === "TECH_SUPPORT" || userRole === "ADMIN" || userRole === "CHECKER") && userId) {
-    updateData.checkedById = userId;
+  let userName = session.user?.name || (session.user as any)?.username;
+  if (!userName && userId) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, username: true },
+    });
+    userName = dbUser?.name || dbUser?.username || "IT Personnel";
   }
-  if (body.status === "APPROVED" && (userRole === "ADMIN" || userRole === "TECH_SUPPORT" || userRole === "APPROVER") && userId) {
+  if (!userName) userName = "IT Personnel";
+
+  // When status is CHECKED: automatically encode checkedById and checkedByName
+  if (body.status === "CHECKED" && userId) {
+    updateData.checkedById = userId;
+    updateData.checkedByName = body.checkedByName?.trim() || userName;
+  }
+
+  // When status is APPROVED: automatically encode approvedById and approvedByName
+  if (body.status === "APPROVED" && userId) {
     updateData.approvedById = userId;
+    updateData.approvedByName = body.approvedByName?.trim() || userName;
+  }
+
+  // When status is SUBMITTED: ensure installer & preparedBy names exist
+  if (body.status === "SUBMITTED" && userId) {
+    if (!updateData.installerName && body.installerName) {
+      updateData.installerName = body.installerName.trim();
+    }
+    if (!updateData.preparedByName && body.preparedByName) {
+      updateData.preparedByName = body.preparedByName.trim();
+    }
   }
 
   const checklist = await prisma.checklist.update({

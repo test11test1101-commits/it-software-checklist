@@ -39,14 +39,16 @@ export default function NewChecklistPage() {
   useEffect(() => {
     async function loadMasterData() {
       try {
-        const [dRes, osRes] = await Promise.all([
+        const [dRes, osRes, meRes] = await Promise.all([
           fetch("/api/departments"),
           fetch("/api/operating-systems"),
+          fetch("/api/me"),
         ]);
 
-        const [dData, osData] = await Promise.all([
+        const [dData, osData, meData] = await Promise.all([
           dRes.ok ? dRes.json() : [],
           osRes.ok ? osRes.json() : [],
+          meRes.ok ? meRes.json() : null,
         ]);
 
         if (Array.isArray(dData)) setDepartments(dData);
@@ -56,6 +58,16 @@ export default function NewChecklistPage() {
             // Default to first OS or Windows 11 Pro if present
             const win11 = osData.find((o) => o.name === "Windows 11 Pro");
             setForm((f) => ({ ...f, operatingSystem: win11 ? win11.name : osData[0].name }));
+          }
+        }
+        if (meData?.user) {
+          const currentUserName = meData.user.name || meData.user.username || "";
+          if (currentUserName) {
+            setForm((f) => ({
+              ...f,
+              installerName: currentUserName,
+              preparedByName: currentUserName,
+            }));
           }
         }
       } catch {
@@ -250,30 +262,108 @@ export default function NewChecklistPage() {
               </div>
             </section>
 
-            {/* Sign-off Fields */}
+            {/* Sign-off Information */}
             <section>
-              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
-                Sign-off Information
-              </h2>
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                  Sign-off Information
+                </h2>
+                <span className="text-xs text-slate-400">
+                  Auto-encoded for Technical Support & Workflow Sign-offs
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { id: "installerName", label: "Install by" },
-                  { id: "preparedByName", label: "Prepared by" },
-                  { id: "checkedByName", label: "Check by" },
-                  { id: "approvedByName", label: "Approved by" },
-                ].map(({ id, label }) => (
-                  <div key={id}>
-                    <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-                    <input
-                      id={id}
-                      type="text"
-                      value={(form as any)[id]}
-                      onChange={set(id)}
-                      placeholder={`Name of person`}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Install by (Auto-encoded) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="installerName" className="block text-sm font-medium text-slate-700">
+                      Install by
+                    </label>
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                      Auto-encoded (Tech Support)
+                    </span>
                   </div>
-                ))}
+                  <input
+                    id="installerName"
+                    type="text"
+                    value={form.installerName}
+                    onChange={set("installerName")}
+                    placeholder="Technical Support Name"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Automatically populated with your logged-in Technical Support account.
+                  </p>
+                </div>
+
+                {/* Prepared by (Auto-encoded) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="preparedByName" className="block text-sm font-medium text-slate-700">
+                      Prepared by
+                    </label>
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                      Auto-encoded (Tech Support)
+                    </span>
+                  </div>
+                  <input
+                    id="preparedByName"
+                    type="text"
+                    value={form.preparedByName}
+                    onChange={set("preparedByName")}
+                    placeholder="Technical Support Name"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Automatically populated with your logged-in Technical Support account.
+                  </p>
+                </div>
+
+                {/* Check by (Auto on Review) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="checkedByName" className="block text-sm font-medium text-slate-700">
+                      Check by
+                    </label>
+                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      Auto on Inspection / Check
+                    </span>
+                  </div>
+                  <input
+                    id="checkedByName"
+                    type="text"
+                    value={form.checkedByName}
+                    onChange={set("checkedByName")}
+                    placeholder="Auto-assigned when reviewer checks PC software"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Leave blank to automatically record who checks/inspects the installation.
+                  </p>
+                </div>
+
+                {/* Approved by (Auto on Approval) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="approvedByName" className="block text-sm font-medium text-slate-700">
+                      Approved by
+                    </label>
+                    <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                      Auto on Final Approval
+                    </span>
+                  </div>
+                  <input
+                    id="approvedByName"
+                    type="text"
+                    value={form.approvedByName}
+                    onChange={set("approvedByName")}
+                    placeholder="Auto-assigned when approver signs off"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Leave blank to automatically record who approves the installation.
+                  </p>
+                </div>
               </div>
             </section>
 

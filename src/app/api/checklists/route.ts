@@ -47,7 +47,15 @@ export async function POST(req: NextRequest) {
   });
 
   const userId = session.user?.id;
-  const userName = session.user?.name;
+  let userName = session.user?.name || (session.user as any)?.username;
+  if (!userName && userId) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, username: true },
+    });
+    userName = dbUser?.name || dbUser?.username || "IT Personnel";
+  }
+  if (!userName) userName = "IT Personnel";
 
   // Resolve branch: if manually encoded branch name is provided, find or create the Branch record
   let branchId = body.branchId || undefined;
@@ -73,10 +81,11 @@ export async function POST(req: NextRequest) {
       operatingSystem: body.operatingSystem,
       hddSsdSerial: body.hddSsdSerial,
       installerId: userId,
-      installerName: body.installerName || userName || "IT Personnel",
-      preparedByName: body.preparedByName,
-      checkedByName: body.checkedByName,
-      approvedByName: body.approvedByName,
+      installerName: body.installerName?.trim() || userName,
+      preparedById: userId,
+      preparedByName: body.preparedByName?.trim() || userName,
+      checkedByName: body.checkedByName?.trim() || null,
+      approvedByName: body.approvedByName?.trim() || null,
       status: "DRAFT",
       results: {
         create: softwareItems.map((item: { id: string }) => ({

@@ -308,18 +308,50 @@ export default function ChecklistDetailPage() {
 
         {/* Sign-offs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Sign-off</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Sign-off Information</h2>
+            <span className="text-xs text-slate-400">FORM-IT-004.00 Official Sign-off</span>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             {[
-              { label: "Install by", value: checklist.installerName },
-              { label: "Prepared by", value: checklist.preparedByName },
-              { label: "Check by", value: checklist.checkedByName },
-              { label: "Approved by", value: checklist.approvedByName },
-            ].map(({ label, value }) => (
-              <div key={label} className="border border-slate-100 rounded-xl p-4 text-center">
-                <p className="text-xs text-slate-400 mb-2">{label}</p>
-                <div className="h-8 border-b border-slate-200 mb-2" />
-                <p className="font-medium text-slate-700 text-sm">{value || "_______________"}</p>
+              {
+                label: "Install by",
+                value: checklist.installerName,
+                status: checklist.installerName ? "Encoded" : "Pending",
+                color: checklist.installerName ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-slate-400 bg-slate-50 border-slate-200",
+              },
+              {
+                label: "Prepared by",
+                value: checklist.preparedByName,
+                status: checklist.preparedByName ? "Encoded" : "Pending",
+                color: checklist.preparedByName ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-slate-400 bg-slate-50 border-slate-200",
+              },
+              {
+                label: "Check by",
+                value: checklist.checkedByName,
+                status: checklist.checkedByName ? "Checked" : "Pending Check",
+                color: checklist.checkedByName ? "text-blue-700 bg-blue-50 border-blue-200" : "text-amber-700 bg-amber-50 border-amber-200",
+              },
+              {
+                label: "Approved by",
+                value: checklist.approvedByName,
+                status: checklist.approvedByName ? "Approved" : "Pending Approval",
+                color: checklist.approvedByName ? "text-green-700 bg-green-50 border-green-200" : "text-purple-700 bg-purple-50 border-purple-200",
+              },
+            ].map(({ label, value, status, color }) => (
+              <div key={label} className="border border-slate-100 rounded-xl p-4 text-center bg-white shadow-xs">
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <p className="text-xs font-medium text-slate-500">{label}</p>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${color}`}>
+                    {status}
+                  </span>
+                </div>
+                <div className="h-8 border-b border-slate-200 mb-2 flex items-center justify-center">
+                  <span className="text-xs text-slate-300">✍ Signature</span>
+                </div>
+                <p className="font-semibold text-slate-800 text-sm truncate" title={value || undefined}>
+                  {value || <span className="text-slate-400 font-normal italic">Auto upon action</span>}
+                </p>
               </div>
             ))}
           </div>
