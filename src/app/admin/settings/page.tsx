@@ -5,15 +5,6 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { SignOutButton } from "@/components/SignOutButton";
 
-interface BranchItem {
-  id: string;
-  name: string;
-  createdAt: string;
-  _count?: {
-    checklists: number;
-  };
-}
-
 interface DepartmentItem {
   id: string;
   name: string;
@@ -26,15 +17,15 @@ interface OSItem {
   createdAt: string;
 }
 
-type TabType = "branches" | "departments" | "operating-systems";
+type TabType = "departments" | "operating-systems";
 
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialTab = (searchParams.get("tab") as TabType) || "departments";
+  const tabParam = searchParams.get("tab") as TabType;
+  const initialTab: TabType = tabParam === "operating-systems" ? "operating-systems" : "departments";
 
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [branches, setBranches] = useState<BranchItem[]>([]);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [operatingSystems, setOperatingSystems] = useState<OSItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +50,6 @@ function AdminSettingsContent() {
   // Endpoint helper
   const getEndpoint = (tab: TabType) => {
     switch (tab) {
-      case "branches":
-        return "/api/branches";
       case "departments":
         return "/api/departments";
       case "operating-systems":
@@ -70,8 +59,6 @@ function AdminSettingsContent() {
 
   const getSingularLabel = (tab: TabType) => {
     switch (tab) {
-      case "branches":
-        return "Branch";
       case "departments":
         return "Department";
       case "operating-systems":
@@ -82,25 +69,22 @@ function AdminSettingsContent() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [bRes, dRes, osRes] = await Promise.all([
-        fetch("/api/branches", { cache: "no-store" }),
+      const [dRes, osRes] = await Promise.all([
         fetch("/api/departments", { cache: "no-store" }),
         fetch("/api/operating-systems", { cache: "no-store" }),
       ]);
 
-      if (bRes.status === 403 || dRes.status === 403 || osRes.status === 403) {
+      if (dRes.status === 403 || osRes.status === 403) {
         setError("Access denied. Administrator privileges required.");
         setLoading(false);
         return;
       }
 
-      const [bData, dData, osData] = await Promise.all([
-        bRes.ok ? bRes.json() : [],
+      const [dData, osData] = await Promise.all([
         dRes.ok ? dRes.json() : [],
         osRes.ok ? osRes.json() : [],
       ]);
 
-      if (Array.isArray(bData)) setBranches(bData);
       if (Array.isArray(dData)) setDepartments(dData);
       if (Array.isArray(osData)) setOperatingSystems(osData);
     } catch {
@@ -124,9 +108,6 @@ function AdminSettingsContent() {
   };
 
   // Filtered lists based on search
-  const filteredBranches = branches.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
-  );
   const filteredDepartments = departments.filter((d) =>
     d.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -135,7 +116,6 @@ function AdminSettingsContent() {
   );
 
   const getCurrentList = () => {
-    if (activeTab === "branches") return filteredBranches;
     if (activeTab === "departments") return filteredDepartments;
     return filteredOS;
   };
@@ -243,9 +223,7 @@ function AdminSettingsContent() {
     setSuccess("");
 
     // Optimistic UI update
-    if (activeTab === "branches") {
-      setBranches((prev) => prev.filter((b) => b.id !== idToDelete));
-    } else if (activeTab === "departments") {
+    if (activeTab === "departments") {
       setDepartments((prev) => prev.filter((d) => d.id !== idToDelete));
     } else {
       setOperatingSystems((prev) => prev.filter((o) => o.id !== idToDelete));
@@ -294,9 +272,7 @@ function AdminSettingsContent() {
     setSuccess("");
 
     // Optimistic UI update
-    if (activeTab === "branches") {
-      setBranches((prev) => prev.filter((b) => !selectedIds.has(b.id)));
-    } else if (activeTab === "departments") {
+    if (activeTab === "departments") {
       setDepartments((prev) => prev.filter((d) => !selectedIds.has(d.id)));
     } else {
       setOperatingSystems((prev) => prev.filter((o) => !selectedIds.has(o.id)));
@@ -336,8 +312,7 @@ function AdminSettingsContent() {
     try {
       const res = await fetch(`${getEndpoint(activeTab)}?seed=1`, { cache: "no-store" });
       const data = await res.json();
-      if (activeTab === "branches") setBranches(data);
-      else if (activeTab === "departments") setDepartments(data);
+      if (activeTab === "departments") setDepartments(data);
       else setOperatingSystems(data);
       setSuccess(`Restored standard default ${getSingularLabel(activeTab).toLowerCase()} options.`);
     } catch {
@@ -397,17 +372,6 @@ function AdminSettingsContent() {
             </Link>
 
             <button
-              onClick={() => switchTab("branches")}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-                activeTab === "branches"
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              <span>🏢</span> Branch Suggestions ({branches.length})
-            </button>
-
-            <button
               onClick={() => switchTab("departments")}
               className={`px-4 py-2 text-sm font-semibold rounded-lg transition whitespace-nowrap flex items-center gap-2 cursor-pointer ${
                 activeTab === "departments"
@@ -456,13 +420,10 @@ function AdminSettingsContent() {
                 <span>Administrator Control Center</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-                {activeTab === "branches" && "Branch Suggestions & Autocomplete Presets"}
                 {activeTab === "departments" && "Department Dropdown Options"}
                 {activeTab === "operating-systems" && "Operating System Choices"}
               </h1>
               <p className="text-purple-200 text-sm mt-1 max-w-2xl">
-                {activeTab === "branches" &&
-                  "Manage preset branch suggestions for autocomplete. Technical Support can now freely and manually encode any branch on the checklist form."}
                 {activeTab === "departments" &&
                   "Configure the official department list. Technical Support will select from these departments in the checklist form."}
                 {activeTab === "operating-systems" &&
@@ -495,11 +456,7 @@ function AdminSettingsContent() {
           </div>
 
           {/* Master Stats Counters */}
-          <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-white/10">
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-xs">
-              <span className="text-purple-200 text-xs block">Assigned Branches</span>
-              <span className="text-2xl font-bold text-white mt-1 block">{branches.length}</span>
-            </div>
+          <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-white/10">
             <div className="bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-xs">
               <span className="text-purple-200 text-xs block">Configured Departments</span>
               <span className="text-2xl font-bold text-white mt-1 block">{departments.length}</span>
@@ -577,9 +534,6 @@ function AdminSettingsContent() {
                     />
                   </th>
                   <th className="px-5 py-3.5 font-semibold">Name / Designation</th>
-                  {activeTab === "branches" && (
-                    <th className="px-5 py-3.5 font-semibold text-center">Linked Checklists</th>
-                  )}
                   <th className="px-5 py-3.5 font-semibold">Created Date</th>
                   <th className="px-5 py-3.5 font-semibold text-right">Actions</th>
                 </tr>
@@ -587,75 +541,16 @@ function AdminSettingsContent() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
                       Loading data...
                     </td>
                   </tr>
                 ) : currentList.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
                       No {getSingularLabel(activeTab).toLowerCase()}s found. Click "+ Add New {getSingularLabel(activeTab)}" or "🔄 Defaults" above to add some!
                     </td>
                   </tr>
-                ) : activeTab === "branches" ? (
-                  filteredBranches.map((b) => {
-                    const isSelected = selectedIds.has(b.id);
-                    return (
-                      <tr
-                        key={b.id}
-                        className={`transition ${isSelected ? "bg-purple-50/70" : "hover:bg-slate-50/80"}`}
-                      >
-                        <td className="w-12 px-5 py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectOne(b.id)}
-                            className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                            aria-label={`Select branch ${b.name}`}
-                          />
-                        </td>
-                        <td className="px-5 py-4 font-semibold text-slate-900 flex items-center gap-2">
-                          <span className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-sm">
-                            🏢
-                          </span>
-                          <span>{b.name}</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                            {b._count?.checklists ?? 0} checklist(s)
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-slate-500 text-xs">
-                          {new Date(b.createdAt).toLocaleDateString("en-PH", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="px-5 py-4 text-right space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedItem(b);
-                              setInputValue(b.name);
-                              setIsEditModalOpen(true);
-                            }}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                          >
-                            ✏️ Rename
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedItem({ id: b.id, name: b.name, count: b._count?.checklists });
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition cursor-pointer"
-                          >
-                            🗑️ Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
                 ) : activeTab === "departments" ? (
                   filteredDepartments.map((d) => {
                     const isSelected = selectedIds.has(d.id);
@@ -794,9 +689,7 @@ function AdminSettingsContent() {
                   required
                   autoFocus
                   placeholder={
-                    activeTab === "branches"
-                      ? "e.g., Cebu Branch or Logistics Hub"
-                      : activeTab === "departments"
+                    activeTab === "departments"
                       ? "e.g., Quality Assurance"
                       : "e.g., Windows 11 Enterprise"
                   }
@@ -895,12 +788,7 @@ function AdminSettingsContent() {
                 <strong className="text-slate-900 font-bold">"{selectedItem.name}"</strong>?
               </p>
 
-              {activeTab === "branches" && selectedItem.count && selectedItem.count > 0 ? (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-                  ⚠️ Note: {selectedItem.count} existing checklist(s) are associated with this branch.
-                  Deleting it will safely disassociate them without deleting the checklist records.
-                </div>
-              ) : null}
+
 
               <div className="flex gap-3 justify-end pt-2">
                 <button
@@ -944,11 +832,7 @@ function AdminSettingsContent() {
                 {getSingularLabel(activeTab).toLowerCase()}(s)?
               </p>
 
-              {activeTab === "branches" && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-                  ⚠️ Note: Any checklists tied to these branches will be safely disassociated.
-                </div>
-              )}
+
 
               <div className="flex gap-3 justify-end pt-2">
                 <button
