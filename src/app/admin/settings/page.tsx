@@ -404,7 +404,7 @@ function AdminSettingsContent() {
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
-              <span>🏢</span> Customize Branches ({branches.length})
+              <span>🏢</span> Branch Suggestions ({branches.length})
             </button>
 
             <button
@@ -456,13 +456,13 @@ function AdminSettingsContent() {
                 <span>Administrator Control Center</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-                {activeTab === "branches" && "Customize Assigned Branches"}
+                {activeTab === "branches" && "Branch Suggestions & Autocomplete Presets"}
                 {activeTab === "departments" && "Department Dropdown Options"}
                 {activeTab === "operating-systems" && "Operating System Choices"}
               </h1>
               <p className="text-purple-200 text-sm mt-1 max-w-2xl">
                 {activeTab === "branches" &&
-                  "Assign and customize company branch names. Check multiple to delete or manage in bulk."}
+                  "Manage preset branch suggestions for autocomplete. Technical Support can now freely and manually encode any branch on the checklist form."}
                 {activeTab === "departments" &&
                   "Configure the official department list. Technical Support will select from these departments in the checklist form."}
                 {activeTab === "operating-systems" &&

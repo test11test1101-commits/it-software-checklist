@@ -49,9 +49,24 @@ export async function POST(req: NextRequest) {
   const userId = session.user?.id;
   const userName = session.user?.name;
 
+  // Resolve branch: if manually encoded branch name is provided, find or create the Branch record
+  let branchId = body.branchId || undefined;
+  const branchNameInput = (body.branch || body.branchName)?.toString().trim();
+  if (branchNameInput) {
+    let existingBranch = await prisma.branch.findUnique({
+      where: { name: branchNameInput },
+    });
+    if (!existingBranch) {
+      existingBranch = await prisma.branch.create({
+        data: { name: branchNameInput },
+      });
+    }
+    branchId = existingBranch.id;
+  }
+
   const checklist = await prisma.checklist.create({
     data: {
-      branchId: body.branchId || undefined,
+      branchId,
       department: body.department,
       date: body.date ? new Date(body.date) : new Date(),
       computerName: body.computerName,

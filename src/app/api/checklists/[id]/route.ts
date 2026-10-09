@@ -71,6 +71,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body[field] !== undefined) updateData[field] = body[field];
   }
 
+  // Handle manually encoded branch name in updates
+  if (body.branch !== undefined || body.branchName !== undefined) {
+    const branchNameInput = (body.branch || body.branchName)?.toString().trim();
+    if (branchNameInput) {
+      let existingBranch = await prisma.branch.findUnique({
+        where: { name: branchNameInput },
+      });
+      if (!existingBranch) {
+        existingBranch = await prisma.branch.create({
+          data: { name: branchNameInput },
+        });
+      }
+      updateData.branchId = existingBranch.id;
+    } else {
+      updateData.branchId = null;
+    }
+  }
+
   // Assign checker/approver user IDs based on role
   const userRole = (session.user as any)?.role;
   const userId = session.user?.id;

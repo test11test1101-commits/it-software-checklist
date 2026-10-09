@@ -3,11 +3,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-interface Branch {
-  id: string;
-  name: string;
-}
-
 interface Department {
   id: string;
   name: string;
@@ -20,7 +15,6 @@ interface OperatingSystem {
 
 export default function NewChecklistPage() {
   const router = useRouter();
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [operatingSystems, setOperatingSystems] = useState<OperatingSystem[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -30,7 +24,7 @@ export default function NewChecklistPage() {
   const today = new Date().toISOString().split("T")[0];
 
   const [form, setForm] = useState({
-    branchId: "",
+    branch: "",
     department: "",
     date: today,
     computerName: "",
@@ -45,19 +39,16 @@ export default function NewChecklistPage() {
   useEffect(() => {
     async function loadMasterData() {
       try {
-        const [bRes, dRes, osRes] = await Promise.all([
-          fetch("/api/branches"),
+        const [dRes, osRes] = await Promise.all([
           fetch("/api/departments"),
           fetch("/api/operating-systems"),
         ]);
 
-        const [bData, dData, osData] = await Promise.all([
-          bRes.ok ? bRes.json() : [],
+        const [dData, osData] = await Promise.all([
           dRes.ok ? dRes.json() : [],
           osRes.ok ? osRes.json() : [],
         ]);
 
-        if (Array.isArray(bData)) setBranches(bData);
         if (Array.isArray(dData)) setDepartments(dData);
         if (Array.isArray(osData)) {
           setOperatingSystems(osData);
@@ -145,30 +136,26 @@ export default function NewChecklistPage() {
                 <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                   Computer Information
                 </h2>
-                <span className="text-xs text-slate-400">Dropdowns configurable in Administrator Settings</span>
+                <span className="text-xs text-slate-400">Department and O.S. dropdowns configurable in Administrator Settings</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Branch Selection */}
+                {/* Branch Input (Manually Encoded) */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="branchId" className="block text-sm font-medium text-slate-700">
+                    <label htmlFor="branch" className="block text-sm font-medium text-slate-700">
                       Branch
                     </label>
-                    <span className="text-xs text-blue-600">Assigned Branch</span>
+                    <span className="text-xs text-slate-400">Manual Entry</span>
                   </div>
-                  <select
-                    id="branchId"
-                    value={form.branchId}
-                    onChange={set("branchId")}
-                    disabled={loadingData}
+                  <input
+                    id="branch"
+                    type="text"
+                    value={form.branch}
+                    onChange={set("branch")}
+                    placeholder="e.g., Head Office, Cebu Branch, Warehouse"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">— Select Branch —</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 {/* Department Dropdown */}
