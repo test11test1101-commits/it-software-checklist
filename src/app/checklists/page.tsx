@@ -58,6 +58,12 @@ export default async function ChecklistsPage({
             {(session.user as any)?.role === "ADMIN" && (
               <>
                 <Link
+                  href="/admin/settings?tab=software-items"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1"
+                >
+                  <span>📋</span> Checklist Items
+                </Link>
+                <Link
                   href="/admin/settings"
                   className="bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
                 >

@@ -77,6 +77,12 @@ export default async function HomePage() {
               {userRole === "ADMIN" && (
                 <>
                   <Link
+                    href="/admin/settings?tab=software-items"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>📋</span> Checklist Items
+                  </Link>
+                  <Link
                     href="/admin/settings"
                     className="bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm"
                   >
@@ -112,6 +118,34 @@ export default async function HomePage() {
             employeeId={employeeId}
           />
         </Suspense>
+
+        {/* Administrator Quick Banner: Checklist Customization */}
+        {userRole === "ADMIN" && (
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-purple-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center text-2xl shrink-0">
+                ⚙️
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-yellow-300 bg-yellow-400/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    Admin Center
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold">Customize Software Installation Checklist (FORM-IT-004.00)</h2>
+                </div>
+                <p className="text-purple-200 text-xs sm:text-sm mt-0.5">
+                  Add, edit, reorder, or toggle software and setup tasks across all 5 checklist stages (Initial Setup, Core, Department, Network, Completion).
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/admin/settings?tab=software-items"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span>📋 Customize Checklist Items →</span>
+            </Link>
+          </div>
+        )}
 
         {/* ACTION SELECTOR CARD: Prominently asks what to do */}
         <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-2xl border border-blue-800/40 relative overflow-hidden">

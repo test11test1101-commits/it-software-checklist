@@ -41,10 +41,18 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   // Load all active software items to create results
-  const softwareItems = await prisma.softwareItem.findMany({
+  let softwareItems = await prisma.softwareItem.findMany({
     where: { isActive: true },
     orderBy: [{ section: "asc" }, { order: "asc" }],
   });
+
+  if (Array.isArray(body.selectedSoftwareItemIds) && body.selectedSoftwareItemIds.length > 0) {
+    const selectedSet = new Set(body.selectedSoftwareItemIds);
+    softwareItems = softwareItems.filter((item) => selectedSet.has(item.id));
+  } else if (Array.isArray(body.excludedSoftwareItemIds) && body.excludedSoftwareItemIds.length > 0) {
+    const excludedSet = new Set(body.excludedSoftwareItemIds);
+    softwareItems = softwareItems.filter((item) => !excludedSet.has(item.id));
+  }
 
   const userId = session.user?.id;
   let userName = session.user?.name || (session.user as any)?.username;

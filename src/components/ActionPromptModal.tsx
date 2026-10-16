@@ -139,6 +139,23 @@ export function ActionPromptModal({ userName, userRole, employeeId }: ActionProm
                 </button>
               </div>
 
+              {/* Admin shortcut if logged in as ADMIN */}
+              {userRole === "ADMIN" && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSelect("/admin/settings?tab=software-items")}
+                    className="w-full bg-purple-50 hover:bg-purple-100/80 border border-purple-200/80 text-purple-900 rounded-xl p-3 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer shadow-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>⚙️</span>
+                      <span>Admin Quick Access: Customize Software Checklist Items</span>
+                    </span>
+                    <span className="text-purple-600 font-bold">Open Settings →</span>
+                  </button>
+                </div>
+              )}
+
               {/* Dismiss / Dashboard Option */}
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-xs text-slate-400">

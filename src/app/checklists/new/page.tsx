@@ -13,10 +13,30 @@ interface OperatingSystem {
   name: string;
 }
 
+interface SoftwareItemSummary {
+  id: string;
+  name: string;
+  section: "FIRST" | "SECOND" | "THIRD" | "FOURTH" | "FINAL";
+  order: number;
+  description?: string | null;
+}
+
+const SECTIONS = [
+  { id: "FIRST" as const, label: "FIRST — Initial Setup" },
+  { id: "SECOND" as const, label: "SECOND — Core Software" },
+  { id: "THIRD" as const, label: "THIRD — Department Software" },
+  { id: "FOURTH" as const, label: "FOURTH — Network & Access" },
+  { id: "FINAL" as const, label: "FINAL — Completion & Verification" },
+] as const;
+
 export default function NewChecklistPage() {
   const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [operatingSystems, setOperatingSystems] = useState<OperatingSystem[]>([]);
+  const [softwareItems, setSoftwareItems] = useState<SoftwareItemSummary[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [isSoftwareCustomizeOpen, setIsSoftwareCustomizeOpen] = useState(false);
+
   const [loadingData, setLoadingData] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,26 +59,31 @@ export default function NewChecklistPage() {
   useEffect(() => {
     async function loadMasterData() {
       try {
-        const [dRes, osRes, meRes] = await Promise.all([
+        const [dRes, osRes, meRes, swRes] = await Promise.all([
           fetch("/api/departments"),
           fetch("/api/operating-systems"),
           fetch("/api/me"),
+          fetch("/api/software-items?active=true"),
         ]);
 
-        const [dData, osData, meData] = await Promise.all([
+        const [dData, osData, meData, swData] = await Promise.all([
           dRes.ok ? dRes.json() : [],
           osRes.ok ? osRes.json() : [],
           meRes.ok ? meRes.json() : null,
+          swRes.ok ? swRes.json() : [],
         ]);
 
         if (Array.isArray(dData)) setDepartments(dData);
         if (Array.isArray(osData)) {
           setOperatingSystems(osData);
           if (osData.length > 0) {
-            // Default to first OS or Windows 11 Pro if present
             const win11 = osData.find((o) => o.name === "Windows 11 Pro");
             setForm((f) => ({ ...f, operatingSystem: win11 ? win11.name : osData[0].name }));
           }
+        }
+        if (Array.isArray(swData)) {
+          setSoftwareItems(swData);
+          setSelectedItemIds(new Set(swData.map((s) => s.id)));
         }
         if (meData?.user) {
           const currentUserName = meData.user.name || meData.user.username || "";
@@ -83,6 +108,38 @@ export default function NewChecklistPage() {
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
+  const toggleItem = (id: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSection = (section: string) => {
+    const secItemIds = softwareItems.filter((i) => i.section === section).map((i) => i.id);
+    const allSecSelected = secItemIds.every((id) => selectedItemIds.has(id));
+
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (allSecSelected) {
+        secItemIds.forEach((id) => next.delete(id));
+      } else {
+        secItemIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedItemIds(new Set(softwareItems.map((s) => s.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedItemIds(new Set());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.computerName.trim()) {
@@ -94,7 +151,10 @@ export default function NewChecklistPage() {
     const res = await fetch("/api/checklists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        selectedSoftwareItemIds: Array.from(selectedItemIds),
+      }),
     });
     if (!res.ok) {
       setError("Failed to create checklist. Please try again.");
@@ -106,7 +166,7 @@ export default function NewChecklistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-12">
       {/* Nav */}
       <nav className="bg-gradient-to-r from-slate-800 to-blue-900 text-white shadow-lg">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -148,11 +208,11 @@ export default function NewChecklistPage() {
                 <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                   Computer Information
                 </h2>
-                <span className="text-xs text-slate-400">Department and O.S. dropdowns configurable in Administrator Settings</span>
+                <span className="text-xs text-slate-400">Master dropdowns configured in Administrator Settings</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Branch Input (Manually Encoded) */}
+                {/* Branch Input */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label htmlFor="branch" className="block text-sm font-medium text-slate-700">
@@ -262,6 +322,97 @@ export default function NewChecklistPage() {
               </div>
             </section>
 
+            {/* Customization: Software items to include on this PC */}
+            <section className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsSoftwareCustomizeOpen(!isSoftwareCustomizeOpen)}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📋</span>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Software Items for This Machine ({selectedItemIds.size}/{softwareItems.length} selected)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Click to review or uncheck any software items that do not apply to this specific computer.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition"
+                >
+                  {isSoftwareCustomizeOpen ? "Hide Software List ▲" : "Customize Software List ▼"}
+                </button>
+              </div>
+
+              {isSoftwareCustomizeOpen && (
+                <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between text-xs pb-1">
+                    <span className="text-slate-500">Uncheck items that are not needed on this computer:</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAll}
+                        className="text-blue-600 hover:underline font-semibold"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        type="button"
+                        onClick={deselectAll}
+                        className="text-slate-500 hover:underline"
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+                  </div>
+
+                  {SECTIONS.map((sec) => {
+                    const secItems = softwareItems.filter((i) => i.section === sec.id);
+                    if (secItems.length === 0) return null;
+                    const secItemIds = secItems.map((i) => i.id);
+                    const allSecSelected = secItemIds.every((id) => selectedItemIds.has(id));
+
+                    return (
+                      <div key={sec.id} className="bg-white border border-slate-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                          <span className="text-xs font-bold text-slate-700">{sec.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection(sec.id)}
+                            className="text-[11px] text-blue-600 hover:underline font-medium"
+                          >
+                            {allSecSelected ? "Deselect section" : "Select all section"}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {secItems.map((item) => {
+                            const isChecked = selectedItemIds.has(item.id);
+                            return (
+                              <label
+                                key={item.id}
+                                className={`flex items-start gap-2 p-1.5 rounded text-xs cursor-pointer transition ${
+                                  isChecked ? "hover:bg-slate-50" : "opacity-50 line-through"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleItem(item.id)}
+                                  className="w-3.5 h-3.5 rounded text-blue-600 mt-0.5"
+                                />
+                                <span className="text-slate-800 font-medium">{item.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             {/* Sign-off Information */}
             <section>
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
@@ -273,7 +424,7 @@ export default function NewChecklistPage() {
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Install by (Auto-encoded) */}
+                {/* Install by */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label htmlFor="installerName" className="block text-sm font-medium text-slate-700">
@@ -291,12 +442,9 @@ export default function NewChecklistPage() {
                     placeholder="Technical Support Name"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
                   />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Automatically populated with your logged-in Technical Support account.
-                  </p>
                 </div>
 
-                {/* Prepared by (Auto-encoded) */}
+                {/* Prepared by */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label htmlFor="preparedByName" className="block text-sm font-medium text-slate-700">
@@ -314,12 +462,9 @@ export default function NewChecklistPage() {
                     placeholder="Technical Support Name"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
                   />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Automatically populated with your logged-in Technical Support account.
-                  </p>
                 </div>
 
-                {/* Check by (Auto on Review) */}
+                {/* Check by */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label htmlFor="checkedByName" className="block text-sm font-medium text-slate-700">
@@ -337,12 +482,9 @@ export default function NewChecklistPage() {
                     placeholder="Auto-assigned when reviewer checks PC software"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Leave blank to automatically record who checks/inspects the installation.
-                  </p>
                 </div>
 
-                {/* Approved by (Auto on Approval) */}
+                {/* Approved by */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label htmlFor="approvedByName" className="block text-sm font-medium text-slate-700">
@@ -360,9 +502,6 @@ export default function NewChecklistPage() {
                     placeholder="Auto-assigned when approver signs off"
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Leave blank to automatically record who approves the installation.
-                  </p>
                 </div>
               </div>
             </section>
